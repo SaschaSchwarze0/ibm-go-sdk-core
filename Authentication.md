@@ -8,6 +8,7 @@ The go-sdk-core project supports the following types of authentication:
 - VPC Instance Authentication
 - Cloud Pak for Data Authentication
 - Multi-Cloud Saas Platform (MCSP) Authentication
+- Code Engine Authentication
 - No Authentication (for testing)
 
 The SDK user configures the appropriate type of authentication for use with service instances.  
@@ -858,6 +859,122 @@ if err != nil {
 // 'service' can now be used to invoke operations.
 ```
 
+## Code Engine Authentication
+The `CodeEngineAuthenticator` is intended to be used by application code
+running inside a compute resource (application, function, job) in a Code Engine project
+for which compute resource tokens have been enabled.
+The CR token is similar to an IAM apikey except that it is managed automatically by
+the compute resource provider (Code Engine).
+This allows the application developer to:
+- avoid storing credentials in application code, configuration files or a secret
+- avoid managing or rotating credentials
+
+The `CodeEngineAuthenticator` will retrieve the CR token from
+the compute resource in which it is running, and will then perform
+the necessary interactions with the IAM token service to obtain an IAM access token
+using the IAM "get token" operation with grant-type `cr-token`.
+The authenticator will repeat these steps to obtain a new IAM access token when the
+current access token expires.
+The IAM access token is added to each outbound request in the `Authorization` header in the form:
+```
+   Authorization: Bearer <IAM-access-token>
+```
+
+### Properties
+
+- IAMProfileName: (optional) the name of the linked trusted IAM profile to be used when obtaining the
+IAM access token (a CR token might map to multiple IAM profiles).
+One of `IAMProfileName` or `IAMProfileID` must be specified.
+
+- IAMProfileID: (optional) the id of the linked trusted IAM profile to be used when obtaining the
+IAM access token (a CR token might map to multiple IAM profiles).
+One of `IAMProfileName` or `IAMProfileID` must be specified.
+
+- URL: (optional) The base endpoint URL of the IAM token service.
+The default value of this property is the "prod" IAM token service endpoint
+(`https://iam.cloud.ibm.com`).
+Make sure that you use an IAM token service endpoint that is appropriate for the
+location of the service being used by your application.
+For example, if you are using an instance of a service in the "production" environment
+(e.g. `https://resource-controller.cloud.ibm.com`),
+then the default "prod" IAM token service endpoint should suffice.
+However, if your application is using an instance of a service in the "staging" environment
+(e.g. `https://resource-controller.test.cloud.ibm.com`),
+then you would also need to configure the authenticator to use the IAM token service "staging"
+endpoint as well (`https://iam.test.cloud.ibm.com`).
+
+- ClientId/ClientSecret: (optional) The `ClientId` and `ClientSecret` fields are used to form a 
+"basic auth" Authorization header for interactions with the IAM token service. If neither field 
+is specified, then no Authorization header will be sent with token server requests.  These fields 
+are optional, but must be specified together.
+
+- Scope: (optional) the scope to be associated with the IAM access token.
+If not specified, then no scope will be associated with the access token.
+
+- DisableSSLVerification: (optional) A flag that indicates whether verification of the server's SSL 
+certificate should be disabled or not. The default value is `false`.
+
+- Headers: (optional) A set of key/value pairs that will be sent as HTTP headers in requests
+made to the IAM token service.
+
+- Client: (optional) The `http.Client` object used to invoke token service requests. If not specified
+by the user, a suitable default Client will be constructed.
+
+### Programming example
+```go
+import (
+    "github.com/IBM/go-sdk-core/v5/core"
+    "<appropriate-git-repo-url>/exampleservicev1"
+)
+...
+// Create the authenticator.
+authenticator, err := core.NewCodeEngineAuthenticatorBuilder().
+    SetIAMProfileName("my-trusted-profile-name").
+	Build()
+if err != nil {
+    panic(err)
+}
+
+// Create the service options struct.
+options := &exampleservicev1.ExampleServiceV1Options{
+    Authenticator: authenticator,
+}
+
+// Construct the service instance.
+service, err := exampleservicev1.NewExampleServiceV1(options)
+if err != nil {
+    panic(err)
+}
+
+// 'service' can now be used to invoke operations.
+```
+
+### Configuration example
+External configuration:
+```
+export EXAMPLE_SERVICE_AUTH_TYPE=ce
+export EXAMPLE_SERVICE_IAM_PROFILE_NAME=my-trusted-profile-name
+```
+Application code:
+```go
+import (
+    "<appropriate-git-repo-url>/exampleservicev1"
+)
+...
+
+// Create the service options struct.
+options := &exampleservicev1.ExampleServiceV1Options{
+    ServiceName:   "example_service",
+}
+
+// Construct the service instance.
+service, err := exampleservicev1.NewExampleServiceV1UsingExternalConfig(options)
+if err != nil {
+    panic(err)
+}
+
+// 'service' can now be used to invoke operations.
+```
 
 ## No Auth Authentication
 The `NoAuthAuthenticator` is a placeholder authenticator which performs no actual authentication function.

@@ -25,6 +25,7 @@ const (
 	AUTHTYPE_CONTAINER    = "container"
 	AUTHTYPE_VPC          = "vpc"
 	AUTHTYPE_MCSP         = "mcsp"
+	AUTHTYPE_CE           = "ce"
 
 	// Names of properties that can be defined as part of an external configuration (credential file, env vars, etc.).
 	// Example:  export MYSERVICE_URL=https://myurl

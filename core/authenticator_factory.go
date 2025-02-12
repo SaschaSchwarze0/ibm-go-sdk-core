@@ -65,6 +65,8 @@ func GetAuthenticatorFromEnvironment(credentialKey string) (authenticator Authen
 		authenticator, err = newMCSPAuthenticatorFromMap(properties)
 	} else if strings.EqualFold(authType, AUTHTYPE_NOAUTH) {
 		authenticator, err = NewNoAuthAuthenticator()
+	} else if strings.EqualFold(authType, AUTHTYPE_CE) {
+		authenticator, err = newCodeEngineAuthenticatorFromMap(properties)
 	} else {
 		err = SDKErrorf(
 			nil,
